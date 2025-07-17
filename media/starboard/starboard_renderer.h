@@ -53,7 +53,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities);
+                    const std::string& max_video_capabilities,
+                    AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -180,6 +181,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
   RequestOverlayInfoCallBack request_overlay_info_cb_;
+
+  // An optional factory callback for creating mojo AndroidOverlays.
+  AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;

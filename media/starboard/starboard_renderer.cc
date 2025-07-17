@@ -123,7 +123,8 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -221,6 +222,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     client_->OnWaiting(WaitingReason::kNoCdm);
     return;
   }
+  // TODO(b/429435008): Allow StarboardRenderer to request AndroidOverlay.
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
