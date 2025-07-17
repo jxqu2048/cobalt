@@ -39,7 +39,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
           traits.max_video_capabilities),
-          android_overlay_factory_cb_(std::move(traits.android_overlay_factory_cb)) {
+      android_overlay_factory_cb_(
+          std::move(traits.android_overlay_factory_cb)) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
