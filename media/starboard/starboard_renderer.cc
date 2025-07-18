@@ -114,7 +114,8 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -222,10 +223,11 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     client_->OnWaiting(WaitingReason::kNoCdm);
     return;
   }
-  // TODO(b/429435008): Allow StarboardRenderer to request AndroidOverlay.
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
+
+  // TODO: b/429435008 - Allow StarboardRenderer to request AndroidOverlay.
   CreatePlayerBridge();
 }
 

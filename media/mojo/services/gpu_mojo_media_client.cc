@@ -132,8 +132,8 @@ StarboardRendererTraits::StarboardRendererTraits(
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
-          std::move(get_starboard_command_buffer_stub_cb),
-      android_overlay_factory_cb(std::move(android_overlay_factory_cb))) {}
+          std::move(get_starboard_command_buffer_stub_cb)),
+      android_overlay_factory_cb(std::move(android_overlay_factory_cb)) {}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 GpuMojoMediaClient::GpuMojoMediaClient(
@@ -298,8 +298,8 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.audio_write_duration_remote, config.max_video_capabilities,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
-        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_,),
-      android_overlay_factory_cb_);
+        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_),
+      std::move(android_overlay_factory_cb_));
   return CreatePlatformStarboardRenderer(std::move(traits));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
