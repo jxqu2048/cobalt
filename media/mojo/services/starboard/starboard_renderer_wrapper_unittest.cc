@@ -137,7 +137,8 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::UnguessableToken::Create(),
             base::Seconds(1),
             base::Seconds(1),
-            std::string())),
+            std::string(),
+            base::NullCallback())),
         mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
