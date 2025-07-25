@@ -17,6 +17,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/android_overlay_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
@@ -114,7 +115,8 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -123,7 +125,8 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb)) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -224,6 +227,16 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled.
+    request_overlay_info_cb_.Run(false);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   CreatePlayerBridge();
 }
 
@@ -456,9 +469,29 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
                                 output_rect.width(), output_rect.height());
 }
 
+#if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
+  // https://source.chromium.org/chromium/chromium/src/+/main:media/gpu/android/media_codec_video_decoder.cc;drc=dcf719eabeb25d9efee139d0294fee2d5976c0f2;l=603
+  // Check if the the overlay_info has stayed the same as expected.
+  // bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  AndroidOverlayConfig config;
+
+  config.ready_cb = base::BindOnce(&StarboardRenderer::OnOverlayReady,
+                                   weak_factory_.GetWeakPtr());
+  config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
+                                    weak_factory_.GetWeakPtr());
+  config.rect = gfx::Rect(0, 0, 0, 0);
+  config.secure = false;
+
+  config.power_efficient = false;
+  config.power_cb = base::BindRepeating(
+      &StarboardRenderer::OnPowerEfficientState, weak_factory_.GetWeakPtr());
+
+  overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
+                                             std::move(config));
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
   if (test_sbplayer_interface_) {
@@ -925,6 +958,30 @@ void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
 void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
   last_media_time_ = media_time;
   last_time_media_time_retrieved_ = Time::Now();
+}
+
+void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
+  // Check that the passed overlay and overlay_ point to the same object.
+  DCHECK_EQ(overlay, overlay_.get());
+
+  // Notify the overlay that we'd like to know if it's destroyed, so that we can
+  // update our internal state if the client drops it without being told.
+  overlay_->AddOverlayDeletedCallback(base::BindOnce(
+      &StarboardRenderer::OnOverlayDeleted, weak_factory_.GetWeakPtr()));
+}
+
+void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
+  DCHECK_EQ(overlay, overlay_.get());
+  overlay_ = nullptr;
+}
+
+void StarboardRenderer::OnOverlayDeleted(AndroidOverlay* overlay) {
+  // Needed?
+}
+
+void StarboardRenderer::OnPowerEfficientState(AndroidOverlay* overlay,
+                                              bool is_power_efficient) {
+  // Needed?
 }
 
 int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,
